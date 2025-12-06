@@ -10,6 +10,8 @@ namespace FitnessCenterApp.Forms
 {
     public partial class UserDashboardForm : Form
     {
+        private Random _random = new Random();
+
         public UserDashboardForm()
         {
             InitializeComponent();
@@ -58,12 +60,7 @@ namespace FitnessCenterApp.Forms
                     ws.SessionID,
                     wt.TypeName AS [Тип],
                     t.FirstName & ' ' & t.LastName AS [Тренер],
-                    ws.SessionDateTime AS [Дата и время],
-                    CASE 
-                        WHEN FORMAT(ws.SessionDateTime, 'hh') < 10 THEN '😴 Утро' 
-                        WHEN FORMAT(ws.SessionDateTime, 'hh') < 18 THEN '😎 День'
-                        ELSE '🌙 Вечер'
-                    END AS [Время суток]
+                    ws.SessionDateTime AS [Дата и время]
                 FROM (WorkoutSessions ws
                 INNER JOIN WorkoutTypes wt ON ws.TypeID = wt.TypeID)
                 INNER JOIN Trainers t ON ws.TrainerID = t.TrainerID
@@ -75,34 +72,8 @@ namespace FitnessCenterApp.Forms
                 var adapter = new OleDbDataAdapter(sql, conn);
                 var table = new DataTable();
                 adapter.Fill(table);
-
-                // Добавляем смайлик к типу тренировки
-                foreach (DataRow row in table.Rows)
-                {
-                    string type = row["Тип"].ToString();
-                    row["Тип"] = GetWorkoutEmoji(type) + " " + type;
-                }
-
                 dgvSessions.DataSource = table;
             }
-        }
-
-        private string GetWorkoutEmoji(string type)
-        {
-            if (string.IsNullOrEmpty(type)) return "🏋️";
-
-            type = type.ToLower();
-
-            if (type.Contains("йога") || type.Contains("yoga")) return "🧘";
-            if (type.Contains("бокс") || type.Contains("box")) return "🥊";
-            if (type.Contains("плавание") || type.Contains("swim")) return "🏊";
-            if (type.Contains("бег") || type.Contains("run") || type.Contains("кардио")) return "🏃";
-            if (type.Contains("силов") || type.Contains("power") || type.Contains("strength")) return "💪";
-            if (type.Contains("танц") || type.Contains("dance")) return "💃";
-            if (type.Contains("кардио") || type.Contains("cardio")) return "❤️";
-            if (type.Contains("стретчинг") || type.Contains("stretch")) return "🤸";
-
-            return "🏋️";
         }
 
         private void LoadFilteredSessions()
@@ -112,12 +83,7 @@ namespace FitnessCenterApp.Forms
                     ws.SessionID,
                     wt.TypeName AS [Тип],
                     t.FirstName & ' ' & t.LastName AS [Тренер],
-                    ws.SessionDateTime AS [Дата и время],
-                    CASE 
-                        WHEN FORMAT(ws.SessionDateTime, 'hh') < 10 THEN '😴 Утро' 
-                        WHEN FORMAT(ws.SessionDateTime, 'hh') < 18 THEN '😎 День'
-                        ELSE '🌙 Вечер'
-                    END AS [Время суток]
+                    ws.SessionDateTime AS [Дата и время]
                 FROM (WorkoutSessions ws
                 INNER JOIN WorkoutTypes wt ON ws.TypeID = wt.TypeID)
                 INNER JOIN Trainers t ON ws.TrainerID = t.TrainerID";
@@ -167,14 +133,6 @@ namespace FitnessCenterApp.Forms
                     var adapter = new OleDbDataAdapter(cmd);
                     var table = new DataTable();
                     adapter.Fill(table);
-
-                    // Добавляем смайлики
-                    foreach (DataRow row in table.Rows)
-                    {
-                        string type = row["Тип"].ToString();
-                        row["Тип"] = GetWorkoutEmoji(type) + " " + type;
-                    }
-
                     dgvSessions.DataSource = table;
                 }
             }
@@ -346,34 +304,46 @@ namespace FitnessCenterApp.Forms
                 using (var conn = DatabaseConnection.GetConnection())
                 {
                     conn.Open();
+
+                    // Получаем все доступные тренировки
                     var cmd = new OleDbCommand(
-                        "SELECT TOP 1 ws.SessionID, wt.TypeName, t.FirstName, t.LastName, ws.SessionDateTime " +
+                        "SELECT ws.SessionID, wt.TypeName, t.FirstName, t.LastName, ws.SessionDateTime " +
                         "FROM ((WorkoutSessions ws " +
                         "INNER JOIN WorkoutTypes wt ON ws.TypeID = wt.TypeID) " +
                         "INNER JOIN Trainers t ON ws.TrainerID = t.TrainerID) " +
-                        "WHERE ws.SessionDateTime > NOW() " +
-                        "ORDER BY RND(-Timer()*[SessionID])", conn);
+                        "WHERE ws.SessionDateTime > NOW()", conn);
 
                     using (var reader = cmd.ExecuteReader())
                     {
-                        if (reader.Read())
-                        {
-                            string type = reader["TypeName"].ToString();
-                            string trainer = $"{reader["FirstName"]} {reader["LastName"]}";
-                            DateTime time = Convert.ToDateTime(reader["SessionDateTime"]);
-                            int sessionId = Convert.ToInt32(reader["SessionID"]);
+                        var workouts = new List<WorkoutInfo>();
 
-                            string emoji = GetWorkoutEmoji(type);
-                            string message = $"{emoji} {type}\n" +
-                                           $"👤 Тренер: {trainer}\n" +
-                                           $"🕐 {time:dd.MM HH:mm}\n\n" +
+                        while (reader.Read())
+                        {
+                            workouts.Add(new WorkoutInfo
+                            {
+                                SessionId = Convert.ToInt32(reader["SessionID"]),
+                                Type = reader["TypeName"].ToString(),
+                                Trainer = $"{reader["FirstName"]} {reader["LastName"]}",
+                                Time = Convert.ToDateTime(reader["SessionDateTime"])
+                            });
+                        }
+
+                        if (workouts.Count > 0)
+                        {
+                            // Выбираем случайную тренировку
+                            int randomIndex = _random.Next(workouts.Count);
+                            var workout = workouts[randomIndex];
+
+                            string message = $"Тип: {workout.Type}\n" +
+                                           $"Тренер: {workout.Trainer}\n" +
+                                           $"Время: {workout.Time:dd.MM HH:mm}\n\n" +
                                            $"Попробуй что-то новое сегодня!";
 
                             if (MessageBox.Show(message, "🎲 Случайная тренировка",
                                 MessageBoxButtons.OKCancel, MessageBoxIcon.Question) == DialogResult.OK)
                             {
                                 // Автоматически записываем на эту тренировку
-                                RegisterForSpecificSession(sessionId);
+                                RegisterForSpecificSession(workout.SessionId);
                             }
                         }
                         else
@@ -388,6 +358,14 @@ namespace FitnessCenterApp.Forms
             {
                 MessageBox.Show($"Ошибка: {ex.Message}");
             }
+        }
+
+        private class WorkoutInfo
+        {
+            public int SessionId { get; set; }
+            public string Type { get; set; }
+            public string Trainer { get; set; }
+            public DateTime Time { get; set; }
         }
 
         private void RegisterForSpecificSession(int sessionId)

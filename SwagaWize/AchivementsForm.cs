@@ -27,88 +27,30 @@ namespace FitnessCenterApp.Forms
                 {
                     conn.Open();
 
-                    // 1. Простой подсчет всех тренировок
+                    // Подсчет тренировок
                     var cmd = new OleDbCommand(
                         "SELECT COUNT(*) FROM Registrations WHERE ClientID = ?", conn);
                     cmd.Parameters.Add("", OleDbType.Integer).Value = CurrentUser.ClientID.Value;
                     object result = cmd.ExecuteScalar();
                     int registrationCount = (result != null && result != DBNull.Value) ? Convert.ToInt32(result) : 0;
 
-                    // 2. Получаем дату первой тренировки
-                    DateTime? firstRegistrationDate = null;
-                    var dateCmd = new OleDbCommand(
-                        "SELECT MIN(RegistrationDateTime) FROM Registrations WHERE ClientID = ?", conn);
-                    dateCmd.Parameters.Add("", OleDbType.Integer).Value = CurrentUser.ClientID.Value;
-                    object dateResult = dateCmd.ExecuteScalar();
-                    if (dateResult != null && dateResult != DBNull.Value)
-                    {
-                        firstRegistrationDate = Convert.ToDateTime(dateResult);
-                    }
-
-                    // 3. Утренние тренировки (упрощенный запрос для Access)
-                    int morningCount = 0;
-                    try
-                    {
-                        var morningCmd = new OleDbCommand(
-                            "SELECT COUNT(*) FROM Registrations r " +
-                            "INNER JOIN WorkoutSessions ws ON r.SessionID = ws.SessionID " +
-                            "WHERE r.ClientID = ? AND FORMAT(ws.SessionDateTime, 'hh') < 10", conn);
-                        morningCmd.Parameters.Add("", OleDbType.Integer).Value = CurrentUser.ClientID.Value;
-                        object morningResult = morningCmd.ExecuteScalar();
-                        if (morningResult != null && morningResult != DBNull.Value)
-                            morningCount = Convert.ToInt32(morningResult);
-                    }
-                    catch { } // Игнорируем ошибки в этом запросе
-
-                    // 4. Разные типы тренировок (упрощенный запрос)
-                    int typesCount = 0;
-                    try
-                    {
-                        var typesCmd = new OleDbCommand(
-                            "SELECT COUNT(DISTINCT TypeName) FROM (" +
-                            "SELECT wt.TypeName FROM Registrations r " +
-                            "INNER JOIN WorkoutSessions ws ON r.SessionID = ws.SessionID " +
-                            "INNER JOIN WorkoutTypes wt ON ws.TypeID = wt.TypeID " +
-                            "WHERE r.ClientID = ?)", conn);
-                        typesCmd.Parameters.Add("", OleDbType.Integer).Value = CurrentUser.ClientID.Value;
-                        object typesResult = typesCmd.ExecuteScalar();
-                        if (typesResult != null && typesResult != DBNull.Value)
-                            typesCount = Convert.ToInt32(typesResult);
-                    }
-                    catch { } // Игнорируем ошибки
-
-                    // 5. Неделя тренировок
-                    int weekCount = 0;
-                    try
-                    {
-                        var weekCmd = new OleDbCommand(
-                            "SELECT COUNT(*) FROM Registrations " +
-                            "WHERE ClientID = ? AND RegistrationDateTime >= DATE()-7", conn);
-                        weekCmd.Parameters.Add("", OleDbType.Integer).Value = CurrentUser.ClientID.Value;
-                        object weekResult = weekCmd.ExecuteScalar();
-                        if (weekResult != null && weekResult != DBNull.Value)
-                            weekCount = Convert.ToInt32(weekResult);
-                    }
-                    catch { } // Игнорируем ошибки
-
                     // Создаем достижения
 
                     // 1. Новичок
                     achievements.Add(new Achievement
                     {
-                        Title = "🏆 Новичок",
+                        Title = registrationCount >= 1 ? "🏆 Новичок" : "❓ Новичок",
                         Description = registrationCount >= 1 ?
                             "Первая тренировка ✓" :
                             "Посетить первую тренировку",
                         IsUnlocked = registrationCount >= 1,
-                        UnlockedDate = registrationCount >= 1 ? firstRegistrationDate : null,
                         Points = 10
                     });
 
                     // 2. Завсегдатай
                     achievements.Add(new Achievement
                     {
-                        Title = "🔥 Завсегдатай",
+                        Title = registrationCount >= 5 ? "🔥 Завсегдатай" : "❓ Завсегдатай",
                         Description = registrationCount >= 5 ?
                             "5 тренировок ✓" :
                             $"Посетить 5 тренировок ({registrationCount}/5)",
@@ -116,57 +58,24 @@ namespace FitnessCenterApp.Forms
                         Points = 50
                     });
 
-                    // 3. Ранняя пташка
+                    // 3. Мастер
                     achievements.Add(new Achievement
                     {
-                        Title = "🌅 Ранняя пташка",
-                        Description = morningCount >= 3 ?
-                            "3 утренние тренировки ✓" :
-                            $"3 утренние тренировки ({morningCount}/3)",
-                        IsUnlocked = morningCount >= 3,
-                        Points = 30
-                    });
-
-                    // 4. Универсал
-                    achievements.Add(new Achievement
-                    {
-                        Title = "🎯 Универсал",
-                        Description = typesCount >= 3 ?
-                            "3 типа тренировок ✓" :
-                            $"Попробовать 3 типа ({typesCount}/3)",
-                        IsUnlocked = typesCount >= 3,
-                        Points = 40
-                    });
-
-                    // 5. Железная воля
-                    achievements.Add(new Achievement
-                    {
-                        Title = "💪 Железная воля",
-                        Description = weekCount >= 3 ?
-                            "3 тренировки за неделю ✓" :
-                            $"3 тренировки за неделю ({weekCount}/3)",
-                        IsUnlocked = weekCount >= 3,
-                        Points = 35
-                    });
-
-                    // 6. Первый вход (всегда разблокировано)
-                    achievements.Add(new Achievement
-                    {
-                        Title = "🌟 Первый вход",
-                        Description = "Регистрация в системе ✓",
-                        IsUnlocked = true,
-                        Points = 5
-                    });
-
-                    // 7. Мастер (дополнительное)
-                    achievements.Add(new Achievement
-                    {
-                        Title = "👑 Мастер",
+                        Title = registrationCount >= 10 ? "👑 Мастер" : "❓ Мастер",
                         Description = registrationCount >= 10 ?
                             "10 тренировок ✓" :
                             $"Посетить 10 тренировок ({registrationCount}/10)",
                         IsUnlocked = registrationCount >= 10,
                         Points = 100
+                    });
+
+                    // 4. Первый вход (всегда разблокировано)
+                    achievements.Add(new Achievement
+                    {
+                        Title = "🌟 Активный пользователь",
+                        Description = "Зарегистрироваться в системе ✓",
+                        IsUnlocked = true,
+                        Points = 5
                     });
                 }
             }
@@ -179,22 +88,6 @@ namespace FitnessCenterApp.Forms
                     Description = "Вы в системе фитнес-центра",
                     IsUnlocked = true,
                     Points = 5
-                });
-
-                achievements.Add(new Achievement
-                {
-                    Title = "🏆 Первая тренировка",
-                    Description = "Запишитесь на первую тренировку",
-                    IsUnlocked = false,
-                    Points = 10
-                });
-
-                achievements.Add(new Achievement
-                {
-                    Title = "🎯 Разнообразие",
-                    Description = "Попробуйте разные типы тренировок",
-                    IsUnlocked = false,
-                    Points = 30
                 });
             }
 
