@@ -1,6 +1,5 @@
 ﻿using FitnessCenterApp.BusinessLogic;
 using FitnessCenterApp.Models;
-using SwagaWize;
 using System;
 using System.Windows.Forms;
 
@@ -11,6 +10,9 @@ namespace FitnessCenterApp.Forms
         public LoginForm()
         {
             InitializeComponent();
+
+            // Показываем случайную цитату при загрузке
+            ShowMotivationalQuote();
         }
 
         private void btnLogin_Click(object sender, EventArgs e)
@@ -25,6 +27,9 @@ namespace FitnessCenterApp.Forms
                 CurrentUser.Role = user.Role;
                 CurrentUser.Username = user.Username;
                 CurrentUser.ClientID = user.ClientID;
+
+                // Показываем приветственную цитату
+                ShowWelcomeQuote();
 
                 this.Hide();
 
@@ -43,6 +48,44 @@ namespace FitnessCenterApp.Forms
             }
         }
 
+        private void ShowMotivationalQuote()
+        {
+            string[] quotes =
+            {
+                "💪 Сила не в мышцах, а в силе воли!",
+                "🔥 Каждая тренировка - шаг к лучшей версии себя!",
+                "🚀 Начни сегодня - гордись завтра!",
+                "🌟 Твое тело способно на большее, чем ты думаешь!",
+                "🎯 Цель - не идеал, а прогресс!",
+                "⚡ Энергия приходит через действие!",
+                "🏆 Победа начинается с первого шага в зал!"
+            };
+
+            Random rnd = new Random();
+            string quote = quotes[rnd.Next(quotes.Length)];
+
+            lblQuote.Text = quote;
+            lblQuote.Visible = true;
+        }
+
+        private void ShowWelcomeQuote()
+        {
+            string[] welcomeQuotes =
+            {
+                "💪 Отличная работа! Твой путь к фитнесу начинается!",
+                "🔥 Добро пожаловать! Готовься стать сильнее!",
+                "🚀 Приветствуем! Новые достижения ждут тебя!",
+                "🌟 Рады видеть! Твоя энергия вдохновляет!",
+                "🎯 С возвращением! Цели становятся ближе!"
+            };
+
+            Random rnd = new Random();
+            string quote = welcomeQuotes[rnd.Next(welcomeQuotes.Length)];
+
+            MessageBox.Show(quote, "Добро пожаловать!",
+                          MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
         private void btnRegister_Click(object sender, EventArgs e)
         {
             new RegistrationForm().ShowDialog();
@@ -55,13 +98,18 @@ namespace FitnessCenterApp.Forms
                 using (var conn = DataAccess.DatabaseConnection.GetConnection())
                 {
                     conn.Open();
-                    MessageBox.Show("Подключение к БД успешно!");
+                    MessageBox.Show("✅ Подключение к БД успешно!");
                 }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Ошибка подключения: {ex.Message}");
             }
+        }
+
+        private void btnRefreshQuote_Click(object sender, EventArgs e)
+        {
+            ShowMotivationalQuote();
         }
     }
 }

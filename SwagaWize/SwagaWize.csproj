@@ -46,6 +46,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AchivementsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="AchivementsForm.Designer.cs">
+      <DependentUpon>AchivementsForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="AddTrainerForm.cs">
       <SubType>Form</SubType>
     </Compile>
