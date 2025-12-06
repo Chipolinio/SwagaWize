@@ -60,8 +60,8 @@ namespace FitnessCenterApp.Forms
                     t.FirstName & ' ' & t.LastName AS [Тренер],
                     ws.SessionDateTime AS [Дата и время],
                     CASE 
-                        WHEN DATEPART('h', ws.SessionDateTime) < 10 THEN '😴 Утро' 
-                        WHEN DATEPART('h', ws.SessionDateTime) < 18 THEN '😎 День'
+                        WHEN FORMAT(ws.SessionDateTime, 'hh') < 10 THEN '😴 Утро' 
+                        WHEN FORMAT(ws.SessionDateTime, 'hh') < 18 THEN '😎 День'
                         ELSE '🌙 Вечер'
                     END AS [Время суток]
                 FROM (WorkoutSessions ws
@@ -91,14 +91,16 @@ namespace FitnessCenterApp.Forms
         {
             if (string.IsNullOrEmpty(type)) return "🏋️";
 
-            if (type.Contains("Йога") || type.Contains("Yoga")) return "🧘";
-            if (type.Contains("Бокс") || type.Contains("Box")) return "🥊";
-            if (type.Contains("Плавание") || type.Contains("Swim")) return "🏊";
-            if (type.Contains("Бег") || type.Contains("Run") || type.Contains("Cardio")) return "🏃";
-            if (type.Contains("Силов") || type.Contains("Power") || type.Contains("Strength")) return "💪";
-            if (type.Contains("Танц") || type.Contains("Dance")) return "💃";
-            if (type.Contains("Кардио") || type.Contains("Cardio")) return "❤️";
-            if (type.Contains("Стретчинг") || type.Contains("Stretch")) return "🤸";
+            type = type.ToLower();
+
+            if (type.Contains("йога") || type.Contains("yoga")) return "🧘";
+            if (type.Contains("бокс") || type.Contains("box")) return "🥊";
+            if (type.Contains("плавание") || type.Contains("swim")) return "🏊";
+            if (type.Contains("бег") || type.Contains("run") || type.Contains("кардио")) return "🏃";
+            if (type.Contains("силов") || type.Contains("power") || type.Contains("strength")) return "💪";
+            if (type.Contains("танц") || type.Contains("dance")) return "💃";
+            if (type.Contains("кардио") || type.Contains("cardio")) return "❤️";
+            if (type.Contains("стретчинг") || type.Contains("stretch")) return "🤸";
 
             return "🏋️";
         }
@@ -112,8 +114,8 @@ namespace FitnessCenterApp.Forms
                     t.FirstName & ' ' & t.LastName AS [Тренер],
                     ws.SessionDateTime AS [Дата и время],
                     CASE 
-                        WHEN DATEPART('h', ws.SessionDateTime) < 10 THEN '😴 Утро' 
-                        WHEN DATEPART('h', ws.SessionDateTime) < 18 THEN '😎 День'
+                        WHEN FORMAT(ws.SessionDateTime, 'hh') < 10 THEN '😴 Утро' 
+                        WHEN FORMAT(ws.SessionDateTime, 'hh') < 18 THEN '😎 День'
                         ELSE '🌙 Вечер'
                     END AS [Время суток]
                 FROM (WorkoutSessions ws
@@ -140,7 +142,7 @@ namespace FitnessCenterApp.Forms
                 parameters.Add(OleDbType.Date);
                 parameters.Add(OleDbType.Date);
                 values.Add(dtpDateFrom.Value.Date);
-                values.Add(dtpDateTo.Value.Date.AddDays(1).AddTicks(-1)); // включая весь конечный день
+                values.Add(dtpDateTo.Value.Date.AddDays(1).AddTicks(-1));
             }
 
             string whereClause = "";
@@ -220,7 +222,9 @@ namespace FitnessCenterApp.Forms
                         "SELECT COUNT(*) FROM Registrations WHERE ClientID = ? AND SessionID = ?", conn);
                     checkCmd.Parameters.Add("", OleDbType.Integer).Value = CurrentUser.ClientID.Value;
                     checkCmd.Parameters.Add("", OleDbType.Integer).Value = sessionID;
-                    int exists = (int)checkCmd.ExecuteScalar();
+                    object checkResult = checkCmd.ExecuteScalar();
+                    int exists = (checkResult != null && checkResult != DBNull.Value) ? Convert.ToInt32(checkResult) : 0;
+
                     if (exists > 0)
                     {
                         MessageBox.Show("Вы уже зарегистрированы на эту тренировку.", "Информация", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -260,7 +264,8 @@ namespace FitnessCenterApp.Forms
                     var cmd = new OleDbCommand(
                         "SELECT COUNT(*) FROM Registrations WHERE ClientID = ?", conn);
                     cmd.Parameters.Add("", OleDbType.Integer).Value = CurrentUser.ClientID.Value;
-                    int registrationCount = (int)cmd.ExecuteScalar();
+                    object result = cmd.ExecuteScalar();
+                    int registrationCount = (result != null && result != DBNull.Value) ? Convert.ToInt32(result) : 0;
 
                     if (registrationCount == 1)
                     {
@@ -269,19 +274,6 @@ namespace FitnessCenterApp.Forms
                     else if (registrationCount >= 5)
                     {
                         ShowAchievementPopup("🔥 Завсегдатай", "Вы уже посетили 5 тренировок! Так держать!");
-                    }
-
-                    // Проверка утренних тренировок
-                    var morningCmd = new OleDbCommand(
-                        "SELECT COUNT(*) FROM Registrations r " +
-                        "INNER JOIN WorkoutSessions ws ON r.SessionID = ws.SessionID " +
-                        "WHERE r.ClientID = ? AND DATEPART('h', ws.SessionDateTime) < 10", conn);
-                    morningCmd.Parameters.Add("", OleDbType.Integer).Value = CurrentUser.ClientID.Value;
-                    int morningCount = (int)morningCmd.ExecuteScalar();
-
-                    if (morningCount >= 3)
-                    {
-                        ShowAchievementPopup("🌅 Ранняя пташка", "3 утренние тренировки - вы настоящий ранняя пташка!");
                     }
                 }
             }
@@ -413,7 +405,9 @@ namespace FitnessCenterApp.Forms
                         "SELECT COUNT(*) FROM Registrations WHERE ClientID = ? AND SessionID = ?", conn);
                     checkCmd.Parameters.Add("", OleDbType.Integer).Value = CurrentUser.ClientID.Value;
                     checkCmd.Parameters.Add("", OleDbType.Integer).Value = sessionId;
-                    int exists = (int)checkCmd.ExecuteScalar();
+                    object checkResult = checkCmd.ExecuteScalar();
+                    int exists = (checkResult != null && checkResult != DBNull.Value) ? Convert.ToInt32(checkResult) : 0;
+
                     if (exists > 0)
                     {
                         MessageBox.Show("Вы уже зарегистрированы на эту тренировку.", "Информация", MessageBoxButtons.OK, MessageBoxIcon.Information);
