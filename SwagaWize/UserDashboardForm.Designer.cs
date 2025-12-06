@@ -2,22 +2,15 @@
 {
     partial class UserDashboardForm
     {
+        /// <summary>
+        /// Required designer variable.
+        /// </summary>
         private System.ComponentModel.IContainer components = null;
-        private System.Windows.Forms.DataGridView dgvSessions;
-        private System.Windows.Forms.ComboBox cmbWorkoutType;
-        private System.Windows.Forms.DateTimePicker dtpDateFrom;
-        private System.Windows.Forms.DateTimePicker dtpDateTo;
-        private System.Windows.Forms.CheckBox chkFilterByDate;
-        private System.Windows.Forms.Button btnFilter;
-        private System.Windows.Forms.Button btnResetFilter;
-        private System.Windows.Forms.Button btnRegister;
-        private System.Windows.Forms.Button btnShowAchievements;
-        private System.Windows.Forms.Button btnRandomWorkout;
-        private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.Label label2;
-        private System.Windows.Forms.Label label3;
-        private System.Windows.Forms.Label label4;
 
+        /// <summary>
+        /// Clean up any resources being used.
+        /// </summary>
+        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))
@@ -27,6 +20,12 @@
             base.Dispose(disposing);
         }
 
+        #region Windows Form Designer generated code
+
+        /// <summary>
+        /// Required method for Designer support - do not modify
+        /// the contents of this method with the code editor.
+        /// </summary>
         private void InitializeComponent()
         {
             this.dgvSessions = new System.Windows.Forms.DataGridView();
@@ -222,5 +221,22 @@
             this.ResumeLayout(false);
             this.PerformLayout();
         }
+
+        #endregion
+
+        private System.Windows.Forms.DataGridView dgvSessions;
+        private System.Windows.Forms.ComboBox cmbWorkoutType;
+        private System.Windows.Forms.DateTimePicker dtpDateFrom;
+        private System.Windows.Forms.DateTimePicker dtpDateTo;
+        private System.Windows.Forms.CheckBox chkFilterByDate;
+        private System.Windows.Forms.Button btnFilter;
+        private System.Windows.Forms.Button btnResetFilter;
+        private System.Windows.Forms.Button btnRegister;
+        private System.Windows.Forms.Button btnShowAchievements;
+        private System.Windows.Forms.Button btnRandomWorkout;
+        private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.Label label2;
+        private System.Windows.Forms.Label label3;
+        private System.Windows.Forms.Label label4;
     }
 }

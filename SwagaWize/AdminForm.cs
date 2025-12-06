@@ -31,5 +31,10 @@ namespace FitnessCenterApp.Forms
         {
             Application.Exit();
         }
+
+        private void btnReports_Click(object sender, EventArgs e)
+        {
+            new ReportForm().ShowDialog();
+        }
     }
 }
