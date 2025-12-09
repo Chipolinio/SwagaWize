@@ -225,7 +225,6 @@ namespace FitnessCenterApp.Forms
                 return;
             }
 
-            // Проверим, нет ли колонок без имени или с дубликатами
             var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var c in _columns)
             {
@@ -248,74 +247,60 @@ namespace FitnessCenterApp.Forms
                 {
                     conn.Open();
 
-                    // 1. Создаём новую таблицу
                     var defs = new List<string>();
                     foreach (var c in _columns)
                     {
-                        // Маппинг типов на типы MS Access
                         string mappedType;
                         switch (c.Type)
                         {
                             case "TEXT": mappedType = "TEXT(255)"; break;
                             case "INTEGER": mappedType = "INTEGER"; break;
-                            case "DATE": mappedType = "DATETIME"; break; // DATETIME в Access
-                            case "BOOLEAN": mappedType = "YESNO"; break; // YESNO в Access
+                            case "DATE": mappedType = "DATETIME"; break;
+                            case "BOOLEAN": mappedType = "YESNO"; break;
                             case "CURRENCY": mappedType = "CURRENCY"; break;
-                            case "MEMO": mappedType = "MEMO"; break; // MEMO в Access
-                            default: mappedType = "TEXT(255)"; break; // fallback
+                            case "MEMO": mappedType = "MEMO"; break;
+                            default: mappedType = "TEXT(255)"; break;
                         }
                         defs.Add($"[{c.Name}] {mappedType}");
                     }
                     string createSql = $"CREATE TABLE [{newTableName}] ({string.Join(", ", defs)})";
-
                     using (var cmd = new OleDbCommand(createSql, conn))
                     {
                         cmd.ExecuteNonQuery();
                     }
-                    System.Diagnostics.Debug.WriteLine($"Таблица [{newTableName}] создана.");
 
-                    // 2. Для каждой колонки с FK — добавляем колонку в СУЩЕСТВУЮЩУЮ таблицу и создаём связь
-                    foreach (var col in _columns.FindAll(c => c.IsForeignKey))
+                    foreach (var col in _columns.FindAll(c => c.IsForeignKey && !string.IsNullOrEmpty(c.ReferencedTable) && !string.IsNullOrEmpty(c.ReferencedColumn)))
                     {
-                        string ownerTable = col.ReferencedTable;      // в какую существующую таблицу добавим FK
-                        string fkColName = col.Name;                  // имя новой колонки (напр. ClientID)
-                        string refTable = newTableName;               // наша новая таблица
-                        string refCol = col.ReferencedColumn;         // колонка в новой таблице (обычно ID)
+                        string newTableFkName = col.Name;
+                        string targetTable = col.ReferencedTable;
+                        string targetColumn = col.ReferencedColumn;
 
-                        // Проверка: есть ли уже такая колонка в внешней таблице?
-                        bool hasCol = false;
-                        DataTable colsSchema = conn.GetSchema("Columns", new[] { null, null, ownerTable, null });
-                        foreach (DataRow r in colsSchema.Rows)
+                        if (!TableExists(targetTable))
                         {
-                            if (r["COLUMN_NAME"].ToString().Equals(fkColName, StringComparison.OrdinalIgnoreCase))
+                            MessageBox.Show($"Целевая таблица '{targetTable}' для внешнего ключа '{newTableFkName}' не найдена.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            using (var cmdRollback = new OleDbCommand($"DROP TABLE [{newTableName}]", conn))
                             {
-                                hasCol = true;
-                                break;
+                                cmdRollback.ExecuteNonQuery();
                             }
+                            return;
                         }
 
-                        // Добавляем колонку внешнего ключа во внешнюю таблицу, если её нет
-                        if (!hasCol)
+                        string targetColumnType = GetSqlTypeForColumn(conn, targetTable, targetColumn);
+                        if (string.IsNullOrEmpty(targetColumnType))
                         {
-                            using (var cmdAddCol = new OleDbCommand($"ALTER TABLE [{ownerTable}] ADD COLUMN [{fkColName}] INTEGER", conn)) // Используем INTEGER для связи
+                            MessageBox.Show($"Целевая колонка '{targetTable}.{targetColumn}' для внешнего ключа '{newTableFkName}' не найдена.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            using (var cmdRollback = new OleDbCommand($"DROP TABLE [{newTableName}]", conn))
                             {
-                                cmdAddCol.ExecuteNonQuery();
+                                cmdRollback.ExecuteNonQuery();
                             }
-                            System.Diagnostics.Debug.WriteLine($"Колонка [{fkColName}] добавлена в [{ownerTable}].");
-                        }
-                        else
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Колонка [{fkColName}] уже существует в [{ownerTable}].");
+                            return;
                         }
 
-                        // Создаём имя для ограничения внешнего ключа
-                        string constraintName = $"FK_{ownerTable}_{fkColName}_To_{refTable}_{refCol}";
+                        string constraintName = $"FK_{newTableName}_{newTableFkName}_To_{targetTable}_{targetColumn}";
 
-                        // Проверим, не существует ли уже такое ограничение (на всякий случай)
                         bool constraintExists = false;
                         try
                         {
-                            // Простой запрос для проверки - может не сработать во всех случаях, но как базовая защита подойдёт
                             using (var cmdCheck = new OleDbCommand(
                                 "SELECT COUNT(*) FROM MSysRelationships WHERE Name = ?", conn))
                             {
@@ -326,54 +311,95 @@ namespace FitnessCenterApp.Forms
                         }
                         catch
                         {
-                            // Если проверка не прошла, просто продолжим и попытаемся создать.
-                            // Ошибка будет поймана в блоке catch ниже.
                         }
 
                         if (constraintExists)
                         {
-                            System.Diagnostics.Debug.WriteLine($"Ограничение {constraintName} уже существует.");
-                            continue; // Пропускаем создание дубликата
+                            continue;
                         }
 
-                        // Создаём само ограничение внешнего ключа
                         using (var cmdFk = new OleDbCommand(
-                            $"ALTER TABLE [{ownerTable}] ADD CONSTRAINT [{constraintName}] " +
-                            $"FOREIGN KEY ([{fkColName}]) REFERENCES [{refTable}]([{refCol}])", conn))
+                            $"ALTER TABLE [{newTableName}] ADD CONSTRAINT [{constraintName}] " +
+                            $"FOREIGN KEY ([{newTableFkName}]) REFERENCES [{targetTable}]([{targetColumn}])", conn))
                         {
                             cmdFk.ExecuteNonQuery();
                         }
-                        System.Diagnostics.Debug.WriteLine($"Создана связь: [{ownerTable}].[{fkColName}] -> [{refTable}].[{refCol}]");
 
-                        // Сохраняем информацию о связи в служебную таблицу AppRelations
                         using (var cmdLog = new OleDbCommand(
                             "INSERT INTO AppRelations (ParentTable, ParentColumn, ChildTable, ChildColumn, ConstraintName) " +
                             "VALUES (?, ?, ?, ?, ?)", conn))
                         {
-                            cmdLog.Parameters.Add("@pTab", OleDbType.VarChar).Value = refTable;
-                            cmdLog.Parameters.Add("@pCol", OleDbType.VarChar).Value = refCol;
-                            cmdLog.Parameters.Add("@cTab", OleDbType.VarChar).Value = ownerTable;
-                            cmdLog.Parameters.Add("@cCol", OleDbType.VarChar).Value = fkColName;
+                            cmdLog.Parameters.Add("@pTab", OleDbType.VarChar).Value = targetTable;
+                            cmdLog.Parameters.Add("@pCol", OleDbType.VarChar).Value = targetColumn;
+                            cmdLog.Parameters.Add("@cTab", OleDbType.VarChar).Value = newTableName;
+                            cmdLog.Parameters.Add("@cCol", OleDbType.VarChar).Value = newTableFkName;
                             cmdLog.Parameters.Add("@cName", OleDbType.VarChar).Value = constraintName;
                             cmdLog.ExecuteNonQuery();
                         }
-                        System.Diagnostics.Debug.WriteLine($"Запись о связи добавлена в AppRelations.");
+                    }
+
+                    foreach (var col in _columns.FindAll(c => c.IsForeignKey && string.IsNullOrEmpty(c.ReferencedTable) && string.IsNullOrEmpty(c.ReferencedColumn)))
+                    {
+                        MessageBox.Show($"Колонка '{col.Name}' отмечена как FK, но не указана целевая таблица/колонка. Связь не создана.", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }
                 }
-
                 MessageBox.Show("Таблица и связи успешно созданы!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                // Сброс формы после успешного создания
                 _columns.Clear();
                 UpdateColumnList();
                 txtNewTableName.Clear();
                 txtColName.Clear();
-                LoadExistingTables(); // <-- ЭТО КЛЮЧЕВОЕ ИЗМЕНЕНИЕ! Обновляем datagridview
+                LoadExistingTables();
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Ошибка создания: " + ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                try
+                {
+                    using (var conn = DatabaseConnection.GetConnection())
+                    {
+                        conn.Open();
+                        if (TableExists(txtNewTableName.Text.Trim()))
+                        {
+                            using (var cmdRollback = new OleDbCommand($"DROP TABLE [{txtNewTableName.Text.Trim()}]", conn))
+                            {
+                                cmdRollback.ExecuteNonQuery();
+                            }
+                        }
+                    }
+                }
+                catch (Exception rollbackEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Ошибка отката: {rollbackEx.Message}");
+                }
             }
+        }
+
+        private string GetSqlTypeForColumn(OleDbConnection conn, string tableName, string columnName)
+        {
+            DataTable schema = conn.GetSchema("Columns", new[] { null, null, tableName, null });
+            foreach (DataRow row in schema.Rows)
+            {
+                if (string.Equals(row["COLUMN_NAME"].ToString(), columnName, StringComparison.OrdinalIgnoreCase))
+                {
+                    int typeCode = Convert.ToInt32(row["DATA_TYPE"]);
+                    switch (typeCode)
+                    {
+                        case 2: return "INTEGER";
+                        case 3: return "LONG";
+                        case 4: return "SINGLE";
+                        case 5: return "DOUBLE";
+                        case 6: return "CURRENCY";
+                        case 7: return "DATETIME";
+                        case 11: return "YESNO";
+                        case 202: return "TEXT(255)";
+                        case 203: return "MEMO";
+                        case 205: return "OLEOBJECT";
+                        default:
+                            return "TEXT(255)";
+                    }
+                }
+            }
+            return null;
         }
 
         private void btnDeleteTable_Click(object sender, EventArgs e)

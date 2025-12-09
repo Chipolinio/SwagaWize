@@ -28,6 +28,8 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea1 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
+            System.Windows.Forms.DataVisualization.Charting.Legend legend1 = new System.Windows.Forms.DataVisualization.Charting.Legend();
             this.cmbReportType = new System.Windows.Forms.ComboBox();
             this.btnGenerate = new System.Windows.Forms.Button();
             this.dgvReport = new System.Windows.Forms.DataGridView();
@@ -36,10 +38,13 @@
             this.btnClose = new System.Windows.Forms.Button();
             this.lblStatus = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
+            this.chartReport = new System.Windows.Forms.DataVisualization.Charting.Chart();
             ((System.ComponentModel.ISupportInitialize)(this.dgvReport)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.chartReport)).BeginInit();
             this.SuspendLayout();
-
+            // 
             // cmbReportType
+            // 
             this.cmbReportType.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.cmbReportType.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F);
             this.cmbReportType.FormattingEnabled = true;
@@ -47,8 +52,9 @@
             this.cmbReportType.Name = "cmbReportType";
             this.cmbReportType.Size = new System.Drawing.Size(300, 24);
             this.cmbReportType.TabIndex = 0;
-
+            // 
             // btnGenerate
+            // 
             this.btnGenerate.BackColor = System.Drawing.Color.SteelBlue;
             this.btnGenerate.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnGenerate.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Bold);
@@ -60,8 +66,9 @@
             this.btnGenerate.Text = "Сгенерировать";
             this.btnGenerate.UseVisualStyleBackColor = false;
             this.btnGenerate.Click += new System.EventHandler(this.btnGenerate_Click);
-
+            // 
             // dgvReport
+            // 
             this.dgvReport.AllowUserToAddRows = false;
             this.dgvReport.AllowUserToDeleteRows = false;
             this.dgvReport.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
@@ -70,10 +77,23 @@
             this.dgvReport.Location = new System.Drawing.Point(20, 70);
             this.dgvReport.Name = "dgvReport";
             this.dgvReport.ReadOnly = true;
-            this.dgvReport.Size = new System.Drawing.Size(744, 350);
+            this.dgvReport.Size = new System.Drawing.Size(744, 180);
             this.dgvReport.TabIndex = 2;
-
+            // 
+            // chartReport
+            // 
+            chartArea1.Name = "ChartArea1";
+            this.chartReport.ChartAreas.Add(chartArea1);
+            legend1.Name = "Legend1";
+            this.chartReport.Legends.Add(legend1);
+            this.chartReport.Location = new System.Drawing.Point(20, 260);
+            this.chartReport.Name = "chartReport";
+            this.chartReport.Size = new System.Drawing.Size(744, 160);
+            this.chartReport.TabIndex = 8;
+            this.chartReport.Text = "chart1";
+            // 
             // btnExportExcel
+            // 
             this.btnExportExcel.BackColor = System.Drawing.Color.Green;
             this.btnExportExcel.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnExportExcel.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F);
@@ -85,8 +105,9 @@
             this.btnExportExcel.Text = "📊 Экспорт в CSV";
             this.btnExportExcel.UseVisualStyleBackColor = false;
             this.btnExportExcel.Click += new System.EventHandler(this.btnExportExcel_Click);
-
+            // 
             // btnExportPDF
+            // 
             this.btnExportPDF.BackColor = System.Drawing.Color.Crimson;
             this.btnExportPDF.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnExportPDF.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F);
@@ -98,8 +119,9 @@
             this.btnExportPDF.Text = "📄 Экспорт в TXT";
             this.btnExportPDF.UseVisualStyleBackColor = false;
             this.btnExportPDF.Click += new System.EventHandler(this.btnExportPDF_Click);
-
+            // 
             // btnClose
+            // 
             this.btnClose.BackColor = System.Drawing.Color.Gray;
             this.btnClose.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnClose.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F);
@@ -111,8 +133,9 @@
             this.btnClose.Text = "Закрыть";
             this.btnClose.UseVisualStyleBackColor = false;
             this.btnClose.Click += new System.EventHandler(this.btnClose_Click);
-
+            // 
             // lblStatus
+            // 
             this.lblStatus.AutoSize = true;
             this.lblStatus.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F);
             this.lblStatus.ForeColor = System.Drawing.Color.Blue;
@@ -121,8 +144,9 @@
             this.lblStatus.Size = new System.Drawing.Size(124, 15);
             this.lblStatus.TabIndex = 6;
             this.lblStatus.Text = "Статус: не сгенерирован";
-
+            // 
             // label1
+            // 
             this.label1.AutoSize = true;
             this.label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F);
             this.label1.Location = new System.Drawing.Point(20, 23);
@@ -130,12 +154,14 @@
             this.label1.Size = new System.Drawing.Size(94, 17);
             this.label1.TabIndex = 7;
             this.label1.Text = "Тип отчета:";
-
+            // 
             // ReportForm
+            // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.White;
             this.ClientSize = new System.Drawing.Size(784, 495);
+            this.Controls.Add(this.chartReport);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.lblStatus);
             this.Controls.Add(this.btnClose);
@@ -151,8 +177,10 @@
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Генератор отчетов";
             ((System.ComponentModel.ISupportInitialize)(this.dgvReport)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.chartReport)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
+
         }
 
         #endregion
@@ -165,5 +193,6 @@
         private System.Windows.Forms.Button btnClose;
         private System.Windows.Forms.Label lblStatus;
         private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.DataVisualization.Charting.Chart chartReport;
     }
 }

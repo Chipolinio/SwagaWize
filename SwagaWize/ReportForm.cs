@@ -3,7 +3,9 @@ using System.Data;
 using System.Data.OleDb;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Windows.Forms;
+using System.Windows.Forms.DataVisualization.Charting;
 using FitnessCenterApp.DataAccess;
 
 namespace FitnessCenterApp.Forms
@@ -19,7 +21,6 @@ namespace FitnessCenterApp.Forms
         private void LoadReportTypes()
         {
             cmbReportType.Items.Clear();
-            // ТОЛЬКО ОДИН ОТЧЕТ - Расписание тренировок
             cmbReportType.Items.Add("📊 Расписание тренировок");
             cmbReportType.SelectedIndex = 0;
         }
@@ -35,23 +36,60 @@ namespace FitnessCenterApp.Forms
 
             try
             {
-                // ТОЛЬКО ОДИН ОТЧЕТ
                 DataTable reportData = GenerateScheduleReport();
 
-                if (reportData != null)
+                if (reportData != null && reportData.Rows.Count > 0)
                 {
                     dgvReport.DataSource = reportData;
                     lblStatus.Text = $"Сгенерировано записей: {reportData.Rows.Count}";
                     lblStatus.ForeColor = Color.Green;
+
+                    // === Построение диаграммы ===
+                    BuildChart(reportData);
+                }
+                else
+                {
+                    dgvReport.DataSource = null;
+                    chartReport.Series.Clear();
+                    chartReport.Titles.Clear();
+                    lblStatus.Text = "Нет данных для отображения";
+                    lblStatus.ForeColor = Color.Orange;
                 }
             }
             catch (Exception ex)
             {
                 lblStatus.Text = "Ошибка генерации";
                 lblStatus.ForeColor = Color.Red;
+                chartReport.Series.Clear();
+                chartReport.Titles.Clear();
                 MessageBox.Show($"Ошибка генерации отчета: {ex.Message}", "Ошибка",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        private void BuildChart(DataTable data)
+        {
+            chartReport.Series.Clear();
+            chartReport.Titles.Clear();
+            chartReport.ChartAreas[0].AxisX.LabelStyle.Angle = -45;
+            chartReport.ChartAreas[0].AxisX.LabelStyle.Font = new Font("Arial", 8);
+            chartReport.Titles.Add("Количество тренировок по типам");
+
+            var series = new Series("Типы")
+            {
+                ChartType = SeriesChartType.Column
+            };
+
+            var grouped = data.AsEnumerable()
+                .GroupBy(row => row.Field<string>("Тип тренировки"))
+                .Select(g => new { Type = g.Key, Count = g.Count() });
+
+            foreach (var item in grouped)
+            {
+                series.Points.AddXY(item.Type, item.Count);
+            }
+
+            chartReport.Series.Add(series);
         }
 
         private DataTable GenerateScheduleReport()
@@ -70,9 +108,6 @@ namespace FitnessCenterApp.Forms
 
             return ExecuteQuery(sql);
         }
-
-        // УДАЛИТЬ все остальные методы Generate...Report
-        // УДАЛИТЬ: GenerateTrainersReport, GenerateRegistrationsReport, GenerateAchievementsReport
 
         private DataTable ExecuteQuery(string sql)
         {
@@ -122,12 +157,10 @@ namespace FitnessCenterApp.Forms
         {
             using (var writer = new StreamWriter(filePath, false, System.Text.Encoding.UTF8))
             {
-                // Заголовок отчета
                 writer.WriteLine($"Отчет: {cmbReportType.SelectedItem}");
                 writer.WriteLine($"Дата генерации: {DateTime.Now:dd.MM.yyyy HH:mm}");
                 writer.WriteLine();
 
-                // Заголовки столбцов
                 var dataTable = (DataTable)dgvReport.DataSource;
                 for (int i = 0; i < dataTable.Columns.Count; i++)
                 {
@@ -137,7 +170,6 @@ namespace FitnessCenterApp.Forms
                 }
                 writer.WriteLine();
 
-                // Данные
                 foreach (DataRow row in dataTable.Rows)
                 {
                     for (int i = 0; i < dataTable.Columns.Count; i++)
@@ -150,7 +182,6 @@ namespace FitnessCenterApp.Forms
                     writer.WriteLine();
                 }
 
-                // Итоги
                 writer.WriteLine();
                 writer.WriteLine($"Итого записей: {dataTable.Rows.Count}");
                 writer.WriteLine($"Сгенерировано: {DateTime.Now:dd.MM.yyyy HH:mm:ss}");
@@ -201,7 +232,6 @@ namespace FitnessCenterApp.Forms
 
                 var dataTable = (DataTable)dgvReport.DataSource;
 
-                // Заголовки
                 writer.WriteLine("┌" + new string('─', 58) + "┐");
                 foreach (DataColumn column in dataTable.Columns)
                 {
@@ -209,7 +239,6 @@ namespace FitnessCenterApp.Forms
                 }
                 writer.WriteLine("├" + new string('─', 58) + "┤");
 
-                // Данные (первые 50 строк)
                 int rowsToShow = Math.Min(dataTable.Rows.Count, 50);
                 for (int i = 0; i < rowsToShow; i++)
                 {
