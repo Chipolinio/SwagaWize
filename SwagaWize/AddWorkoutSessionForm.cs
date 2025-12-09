@@ -55,7 +55,9 @@ namespace FitnessCenterApp.Forms
                     ws.SessionID,
                     wt.TypeName AS [Тип],
                     t.FirstName & ' ' & t.LastName AS [Тренер],
-                    ws.SessionDateTime AS [Дата и время]
+                    ws.SessionDateTime AS [Дата и время],
+                    ws.Duration AS [Длительность (мин)],
+                    ws.Price AS [Цена (руб)]
                 FROM (WorkoutSessions ws
                 INNER JOIN WorkoutTypes wt ON ws.TypeID = wt.TypeID)
                 INNER JOIN Trainers t ON ws.TrainerID = t.TrainerID
@@ -89,6 +91,10 @@ namespace FitnessCenterApp.Forms
             cmbType.SelectedIndex = -1;
             cmbTrainer.SelectedIndex = -1;
             dtpDateTime.Value = DateTime.Now;
+            // --- СБРАСЫВАЕМ Duration и Price ---
+            nudDuration.Value = nudDuration.Minimum; // Или установите значение по умолчанию
+            nudPrice.Value = nudPrice.Minimum;       // Или установите значение по умолчанию
+            // --- КОНЕЦ СБРОСА ---
             _selectedSessionID = null;
             this.Text = "Добавить тренировку";
         }
@@ -114,7 +120,7 @@ namespace FitnessCenterApp.Forms
                 {
                     conn.Open();
                     var cmd = new OleDbCommand(
-                        "SELECT TypeID, TrainerID, SessionDateTime FROM WorkoutSessions WHERE SessionID = ?", conn);
+                        "SELECT TypeID, TrainerID, SessionDateTime, Duration, Price FROM WorkoutSessions WHERE SessionID = ?", conn);
                     cmd.Parameters.Add("", OleDbType.Integer).Value = sessionID;
                     var reader = cmd.ExecuteReader();
 
@@ -123,6 +129,10 @@ namespace FitnessCenterApp.Forms
                         cmbType.SelectedValue = reader["TypeID"];
                         cmbTrainer.SelectedValue = reader["TrainerID"];
                         dtpDateTime.Value = Convert.ToDateTime(reader["SessionDateTime"]);
+                        // --- ЗАГРУЖАЕМ Duration и Price ---
+                        nudDuration.Value = Convert.ToDecimal(reader["Duration"]);
+                        nudPrice.Value = Convert.ToDecimal(reader["Price"]);
+                        // --- КОНЕЦ ЗАГРУЗКИ ---
                     }
                     else
                     {
@@ -150,6 +160,23 @@ namespace FitnessCenterApp.Forms
             int trainerID = Convert.ToInt32(cmbTrainer.SelectedValue);
             DateTime dateTime = dtpDateTime.Value;
 
+            // --- НОВЫЕ ПЕРЕМЕННЫЕ ---
+            decimal price;
+            int duration;
+
+            if (!int.TryParse(nudDuration.Value.ToString(), out duration) || duration <= 0)
+            {
+                MessageBox.Show("Введите корректную длительность тренировки (целое число > 0).", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!decimal.TryParse(nudPrice.Value.ToString(), out price) || price < 0)
+            {
+                MessageBox.Show("Введите корректную цену тренировки (число >= 0).", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            // --- КОНЕЦ НОВЫХ ПЕРЕМЕННЫХ ---
+
             try
             {
                 using (var conn = DatabaseConnection.GetConnection())
@@ -159,10 +186,14 @@ namespace FitnessCenterApp.Forms
                     {
                         // Редактирование существующей сессии
                         var cmd = new OleDbCommand(
-                            "UPDATE WorkoutSessions SET TypeID = ?, TrainerID = ?, SessionDateTime = ? WHERE SessionID = ?", conn);
+                            "UPDATE WorkoutSessions SET TypeID = ?, TrainerID = ?, SessionDateTime = ?, Duration = ?, Price = ? WHERE SessionID = ?", conn);
                         cmd.Parameters.Add("", OleDbType.Integer).Value = typeID;
                         cmd.Parameters.Add("", OleDbType.Integer).Value = trainerID;
                         cmd.Parameters.Add("", OleDbType.Date).Value = dateTime;
+                        // --- ДОБАВЛЯЕМ ПАРАМЕТРЫ ДЛЯ Duration и Price ---
+                        cmd.Parameters.Add("", OleDbType.Integer).Value = duration;
+                        cmd.Parameters.Add("", OleDbType.Currency).Value = price; // Используем Currency для цены
+                        // --- КОНЕЦ ДОБАВЛЕНИЯ ПАРАМЕТРОВ ---
                         cmd.Parameters.Add("", OleDbType.Integer).Value = _selectedSessionID.Value;
                         int rowsAffected = cmd.ExecuteNonQuery();
                         if (rowsAffected > 0)
@@ -181,10 +212,14 @@ namespace FitnessCenterApp.Forms
                     {
                         // Добавление новой сессии
                         var cmd = new OleDbCommand(
-                            "INSERT INTO WorkoutSessions (TypeID, TrainerID, SessionDateTime) VALUES (?, ?, ?)", conn);
+                            "INSERT INTO WorkoutSessions (TypeID, TrainerID, SessionDateTime, Duration, Price) VALUES (?, ?, ?, ?, ?)", conn);
                         cmd.Parameters.Add("", OleDbType.Integer).Value = typeID;
                         cmd.Parameters.Add("", OleDbType.Integer).Value = trainerID;
                         cmd.Parameters.Add("", OleDbType.Date).Value = dateTime;
+                        // --- ДОБАВЛЯЕМ ПАРАМЕТРЫ ДЛЯ Duration и Price ---
+                        cmd.Parameters.Add("", OleDbType.Integer).Value = duration;
+                        cmd.Parameters.Add("", OleDbType.Currency).Value = price; // Используем Currency для цены
+                        // --- КОНЕЦ ДОБАВЛЕНИЯ ПАРАМЕТРОВ ---
                         cmd.ExecuteNonQuery();
                         MessageBox.Show("Тренировка успешно добавлена!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         LoadAllSessions(); // Обновляем таблицу
